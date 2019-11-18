@@ -1,0 +1,9 @@
+exp_name: Trial
+save_path:
+train_params:
+  epochs: 100
+  batch_size: 256
+
+model_params:
+  model_name: classifier
+  init: 0
