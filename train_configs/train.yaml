@@ -3,7 +3,12 @@ save_path:
 train_params:
   epochs: 100
   batch_size: 256
+  lr: 0.001
+  optimizer: Adam
+  loss: CE
+  metric: top1_acc
 
 model_params:
   model_name: classifier
   init: 0
+  output_class: 10
