@@ -33,21 +33,22 @@ class Market1501(torch.utils.data.Dataset):
         self.data_fol = self.path.joinpath('bounding_box_{}'.format(typ))
         self.data_list = list(self.data_fol.glob("*.jpg"))
         self.attributes = MrktAttribute(str(self.path.joinpath(attributes_fol_name)))
+        self.get_atts_of = getattr(self.attributes, "get_{}_atts_of".format(typ))
 
     def show_sample(self):
         idx = random.randint(0, self.__len__())
         data, id = self.__getitem__(idx)
         data.show()
-        atts = self.attributes.of(id)
-        for key, val in atts.items():
-            print("{:.^15}: {}".format(key, val))
+        atts = self.get_atts_of(id)
+        for idx, val in enumerate(list(atts)):
+            print("{:.^15}: {}".format(self.attributes.names[idx], val))
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
         data = MrktImage(self.data_list[idx])
-        return data.image, data.id
+        return data.image, data.id, self.get_atts_of(data.id)
 
 
 class MrktImage:
@@ -88,7 +89,6 @@ class MrktAttribute:
         self.train_atts= self.__get_atts__(typ='train')
         self.test_atts = self.__get_atts__(typ='test')
 
-
         self.train_ids = self.__get_ids__(typ='train')
         self.test_ids = self.__get_ids__(typ='test')
 
@@ -122,20 +122,17 @@ class MrktAttribute:
     def get_test_atts_of(self, id):
         return self.test_atts[:, self.test_ids.index(id)]
 
-    def of(self, id):
+    def get_atts_of(self, id):
         """
         :param id: eg: between '0000' '1500'
-        :return: the 28 attributes of the given id as a dict
+        :return: the 28 attributes of the given id
         """
         if id in self.test_ids:
-            data = self.test_atts
-            idx = self.test_ids.index(id)
+            return self.get_test_atts_of(id)
         elif id in self.train_ids:
-            data = self.train_atts
-            idx = self.train_ids.index(id)
+            return self.get_train_atts_of(id)
         else:
             raise ValueError("Missing ID, the give id {} is not available".format(id))
 
-        vals = list(data[:, idx])
-        return dict(zip(self.names, vals))
+
 
