@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch.utils.data
 from torch.autograd import Variable
 
-from Data.data_loader import DataLoader
+from Data.data_loader import Market1501
 from utils import RunningAverage, top1_acc
 from Model.model_factory import ModelFactory
 
