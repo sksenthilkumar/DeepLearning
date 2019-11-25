@@ -48,7 +48,7 @@ class Market1501(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         data = MrktImage(self.data_list[idx])
-        return data.image, data.id, self.get_atts_of(data.id)
+        return data.numpy(), data.id
 
 
 class MrktImage:
@@ -70,6 +70,9 @@ class MrktImage:
                 self.__image__ = img.convert('RGB')
 
         return self.__image__
+
+    def numpy(self):
+        return np.array(self.image)
 
 
 class MrktAttribute:

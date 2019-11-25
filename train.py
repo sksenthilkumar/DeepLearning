@@ -36,8 +36,8 @@ class Train:
         self.setup_model()
         self.setup_data()
         self.setup_optimizer()
-        self.setup_loss()
-        self.setup_metric()
+        # self.setup_loss()
+        # self.setup_metric()
         self.setup_opfol()
         self.setup_logdf()
 
@@ -46,8 +46,8 @@ class Train:
 
     def setup_data(self):
         # setting up the data
-        self.train_data = torch.utils.data.DataLoader()
-        self.test_data = torch.utils.data.DataLoader()
+        self.train_data = torch.utils.data.DataLoader(Market1501(typ='train'))
+        self.test_data = torch.utils.data.DataLoader(Market1501(typ='test'))
 
     def setup_optimizer(self):
         optimizer_name = self.train_params['optimizer']
@@ -91,10 +91,11 @@ class Train:
         # saving the training configuration file in the experiment folder
         save_config_path = self.op_path.joinpath("train_config.yaml")
         with open(str(save_config_path), 'w') as f:
+            self.train_config['id'] = self.exp_id
             yaml.dump(self.train_config, f)
 
     def setup_logdf(self):
-        self.logdf = pd.Dataframe(columns=['epoch', 'train_loss', 'test_loss', 'train_acc', 'test_acc'])
+        self.logdf = pd.DataFrame(columns=['epoch', 'train_loss', 'test_loss', 'train_acc', 'test_acc'])
         self.save_log_df()
 
     def save_log_df(self):
@@ -166,7 +167,7 @@ class Train:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-tc", required=True, help="training configuration file")
+    parser.add_argument("-tc", help="training configuration file", default="train_configs/train.yaml")
     args = parser.parse_args()
     a = Train(args.tc)
     a.init_setup()

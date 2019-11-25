@@ -1,9 +1,12 @@
 exp_name: Trial
-save_path:
+save_path: /home/senthil/results
 train_params:
   epochs: 100
   batch_size: 256
+  lr: 0.001
+  optimizer: Adam
 
 model_params:
-  model_name: classifier
+  model_name: MainNet
   init: 0
+
