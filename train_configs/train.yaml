@@ -8,5 +8,6 @@ train_params:
 
 model_params:
   model_name: MainNet
+  extractor_op_features: 1000
   init: 0
 

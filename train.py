@@ -46,8 +46,10 @@ class Train:
 
     def setup_data(self):
         # setting up the data
-        self.train_data = torch.utils.data.DataLoader(Market1501(typ='train'))
-        self.test_data = torch.utils.data.DataLoader(Market1501(typ='test'))
+        self.train_data = torch.utils.data.DataLoader(Market1501(typ='train'), batch_size=self.batch_size,
+                                                      drop_last=True)
+        self.test_data = torch.utils.data.DataLoader(Market1501(typ='test'), batch_size=self.batch_size,
+                                                     drop_last=True)
 
     def setup_optimizer(self):
         optimizer_name = self.train_params['optimizer']
@@ -148,8 +150,9 @@ class Train:
 
     def one_train_iteration(self, data, label):
         self.optimizer.zero_grad()
+        data = data.float()
         op = self.model(data)
-        loss = self.loss(op, label)
+        loss = self.model.loss(op, label)
         acc = self.metric(op, label)
         loss.backward()
         self.optimizer.step()
@@ -159,7 +162,7 @@ class Train:
     def one_test_iteration(self, data, label):
 
         op = self.model(data)
-        loss = self.loss(op, label)
+        loss = self.model.loss(op, label)
         acc = self.metric(op, label)
 
         return loss.data.item(), acc.item()

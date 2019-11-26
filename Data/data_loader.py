@@ -48,7 +48,7 @@ class Market1501(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         data = MrktImage(self.data_list[idx])
-        return data.numpy(), data.id
+        return data.numpy(for_torch_training=True), self.get_atts_of(data.id)
 
 
 class MrktImage:
@@ -59,7 +59,7 @@ class MrktImage:
             self.path = path
 
         self.name = self.path.stem
-        self.id = self.name.split('_')[0]
+        self.id = int(self.name.split('_')[0])
         self.__image__ = None
 
     @property
@@ -71,29 +71,38 @@ class MrktImage:
 
         return self.__image__
 
-    def numpy(self):
-        return np.array(self.image)
+    def numpy(self, for_torch_training=False):
+        img = np.array(self.image)
+        if for_torch_training:
+            img = np.transpose(img, (2, 0, 1))
+        return img
 
 
 class MrktAttribute:
-    def __init__(self, path):
+    def __init__(self, path=None):
         # constants
         self.names = ['age', 'backpack', 'bag', 'handbag', 'downblack', 'downblue', 'downbrown', 'downgray',
                       'downgreen', 'downpink', 'downpurple', 'downwhite', 'downyellow', 'upblack', 'upblue',
                       'upgreen', 'upgray', 'uppurple', 'upred', 'upwhite', 'upyellow', 'clothes', 'down',
                       'up', 'hair', 'hat', 'gender', 'image_index']
+
+        self.actual_atts = {'age': 1, 'backpack': 1, 'bag': 1, 'handbag': 1, 'down_color': 9, 'up_color': 8,
+                            'clothes': 1, 'down': 1, 'up': 1, 'hair': 1, 'hat': 1, 'gender': 1}
         self.no_train_ids = 750
         self.no_test_ids = 751
 
         # variables
-        self.path = path
-        self.atts = scio.loadmat(str(self.path))['market_attribute'][0][0]
+        if path:
+            self.path = path
+            self.atts = scio.loadmat(str(self.path))['market_attribute'][0][0]
 
-        self.train_atts= self.__get_atts__(typ='train')
-        self.test_atts = self.__get_atts__(typ='test')
+            self.train_atts= self.__get_atts__(typ='train')
+            self.test_atts = self.__get_atts__(typ='test')
 
-        self.train_ids = self.__get_ids__(typ='train')
-        self.test_ids = self.__get_ids__(typ='test')
+            self.train_ids = self.__get_ids__(typ='train')
+            self.test_ids = self.__get_ids__(typ='test')
+        else:
+            print("No path value")
 
     def __get_ids__(self, typ):
         fo = getattr(self, '{}_atts'.format(typ))
@@ -117,13 +126,23 @@ class MrktAttribute:
             else:
                 new_atts.append(list(typ_atts[idx])[0])
 
-        return np.array(new_atts)
+        atts = np.array(new_atts, dtype=int)
+        temp = atts[:-1, :] - 1
+        atts[:-1, :] = temp
+        return atts
 
-    def get_train_atts_of(self, id):
-        return self.train_atts[:, self.train_ids.index(id)]
+    def get_train_atts_of(self, id, leave_index=False):
+        ans = self.train_atts[:, self.train_ids.index(id)]
+        if leave_index:
+            ans = ans[:-1]
+        return ans
 
-    def get_test_atts_of(self, id):
-        return self.test_atts[:, self.test_ids.index(id)]
+    def get_test_atts_of(self, id, leave_index=False):
+        ans = self.test_atts[:, self.test_ids.index(id)]
+        if leave_index:
+            ans = ans[:-1]
+        return ans
+
 
     def get_atts_of(self, id):
         """
@@ -136,6 +155,3 @@ class MrktAttribute:
             return self.get_train_atts_of(id)
         else:
             raise ValueError("Missing ID, the give id {} is not available".format(id))
-
-
-
