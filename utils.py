@@ -3,7 +3,8 @@ import torch
 import pathlib
 from Model.model_factory import ModelFactory
 
-class RunningAverage():
+
+class RunningAverage:
     def __init__(self):
         self.steps = 0
         self.total = 0
@@ -17,7 +18,7 @@ class RunningAverage():
 
 
 def top1_acc(op, target):
-    topk =1
+    topk = 1
     batch_size = target.size(0)
     _, pred = op.topk(topk, dim=1, largest=True, sorted=True)
     pred = pred.t()
@@ -33,7 +34,7 @@ def load_model_frm_exp(exp_path):
     exp_path = pathlib.Path(exp_path)
     model_path = exp_path.joinpath('best.pth.tar')
     tc_path = exp_path.joinpath('training_config.yaml')
-    tc= yaml.full_load(open(str(tc_path)))
+    tc = yaml.full_load(open(str(tc_path)))
     return load_model(tc, model_path)
 
 
