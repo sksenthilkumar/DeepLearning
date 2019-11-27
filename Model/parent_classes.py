@@ -40,8 +40,12 @@ class SubNet(torch.nn.Module):
         :return:
         """
         if self.op_neurons == 1:
-            return nn.BCELoss(op, label)
+            op = op.squeeze(1)
+            label = label.type(torch.FloatTensor)
+            l = nn.BCELoss()
         elif self.op_neurons > 1:
-            return nn.CrossEntropyLoss(op, label)
+            l = nn.CrossEntropyLoss()
         else:
             raise ValueError("Number of outputs cannot be zero")
+
+        return l(op, label)

@@ -15,9 +15,12 @@ class MainNet(torch.nn.Module):
         self.atts = dict()
         idxs = 0
         for k, v in att_class.actual_atts.items():
-            self.atts[k] = {'op_neur': v, 'label_idx': (idxs, idxs+v)}
+            if k == 'age':
+                self.atts[k] = {'op_neur': 4, 'label_idx': (idxs, idxs+v)}
+            else:
+                self.atts[k] = {'op_neur': v, 'label_idx': (idxs, idxs+v)}
             idxs = idxs + v
-            self.atts[k]['model'] = SubNet(op_neurons=v, attr_name=k, **kwargs)
+            self.atts[k]['model'] = SubNet(op_neurons=self.atts[k]['op_neur'], attr_name=k, **kwargs)
         # self.atts = {'u_body_clothing': {'op_neur': 8, 'label_idx': ()},
         #              'gender': {'op_neur': 1, 'label_idx': ()},
         #              'hair': {'op_neur': 1, 'label_idx': ()},
@@ -36,13 +39,13 @@ class MainNet(torch.nn.Module):
 
     def forward(self, input):
         img_features = self.extractor(input)
-
+        output = {}
         for att, infos in self.atts.items():
             model = infos['model']
-            infos['out'] = model(img_features)
+            out = model(img_features)
+            output[att] = out
 
-        result = {att: infos['out'] for att, infos in self.atts.items()}
-        return result
+        return output
 
     def loss(self, op, gt):
         """
@@ -55,4 +58,5 @@ class MainNet(torch.nn.Module):
         for attr, out_value in op.items():
             model = self.atts[attr]['model']
             strt_idx, end_idx = self.atts[attr]['label_idx']
-            loss = loss + model.loss(out_value, gt[:, strt_idx:end_idx])
+            label = gt[:, strt_idx:end_idx].squeeze(1)
+            loss = loss + model.loss(out_value, label)
