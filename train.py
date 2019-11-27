@@ -69,14 +69,6 @@ class Train:
 
         return self.__optimizer__
 
-    def setup_metric(self):
-        metric = self.train_params['metric']
-        self.metric = None
-        if metric == 'top1_acc':
-            self.metric = top1_acc
-        else:
-            raise ValueError("Unknown value {} for metric".format(metric))
-
     def setup_opfol(self):
         # setting up the output folder
         self.exp_name = self.train_config.get('exp_name')
