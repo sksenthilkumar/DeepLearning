@@ -36,8 +36,6 @@ class Train:
         self.setup_model()
         self.setup_data()
         self.setup_optimizer()
-        # self.setup_loss()
-        # self.setup_metric()
         self.setup_opfol()
         self.setup_logdf()
 
@@ -62,14 +60,6 @@ class Train:
 
         else:
             raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
-
-    def setup_loss(self):
-        loss_function = self.train_params['loss']
-        self.loss = None
-        if loss_function == 'CE':
-            self.loss = torch.nn.CrossEntropyLoss()
-        else:
-            raise ValueError("Unknown value {} for loss function".format(loss_function))
 
     def setup_metric(self):
         metric = self.train_params['metric']
@@ -143,7 +133,7 @@ class Train:
                 loss, acc = one_iter_function(data, label)
                 loss_avg.update(loss)
                 acc_avg.update(acc)
-                t.set_postfix(run_param="Epoch{} Loss:{} Acc:{}".format(epoch_num, loss_avg(), acc_avg()))
+                t.set_postfix(run_param="Epoch{} Loss:{:.2f} Acc:{:.2f}".format(epoch_num, loss_avg(), acc_avg()))
                 t.update()
 
         return acc_avg, loss_avg
@@ -152,12 +142,12 @@ class Train:
         self.optimizer.zero_grad()
         data = data.float()
         op = self.model(data)
-        loss = self.model.loss(op, label)
-        acc = self.metric(op, label)
+        loss, all_loss = self.model.loss(op, label)
+        all_acc = self.model.metric(op, label)
         loss.backward()
         self.optimizer.step()
 
-        return loss.data.item(), acc.item()
+        return loss.data.item(), all_acc['average'].item()
 
     def one_test_iteration(self, data, label):
 
