@@ -20,7 +20,9 @@ class Market1501(torch.utils.data.Dataset):
         print("Initiating the Market 1501 {}ing data".format(typ))
 
         # constants
-        path_dic = {'senthil': 'data/Market-1501-v15.09.15'}  # user name, and path to the dataset
+        path_dic = {'senthil': 'data/Market-1501-v15.09.15',  # user name, and path to the dataset
+                    'skathiresan': '/media/skathiresan/Data/Market-1501-v15.09.15'
+                    }
         attributes_fol_name = 'market_attribute.mat'
 
         # get arguments
@@ -31,9 +33,26 @@ class Market1501(torch.utils.data.Dataset):
 
         self.path = self.home_path.joinpath(path_dic[username])
         self.data_fol = self.path.joinpath('bounding_box_{}'.format(typ))
-        self.data_list = list(self.data_fol.glob("*.jpg"))
+
         self.attributes = MrktAttribute(str(self.path.joinpath(attributes_fol_name)))
         self.get_atts_of = getattr(self.attributes, "get_{}_atts_of".format(typ))
+
+        self.__data_list__ = []
+
+    @property
+    def data_list(self):
+        if not self.__data_list__:
+            fo = list(self.data_fol.glob("*.jpg"))
+            images_not_in_list = 0
+            for i in fo:
+                if i.stem.split('_')[0] != '-1':
+                    self.__data_list__.append(i)
+                else:
+                    images_not_in_list += 1
+
+            print("{} images with class -1 are not added to data list".format(images_not_in_list))
+
+        return self.__data_list__
 
     def show_sample(self):
         idx = random.randint(0, self.__len__())
@@ -86,8 +105,20 @@ class MrktAttribute:
                       'upgreen', 'upgray', 'uppurple', 'upred', 'upwhite', 'upyellow', 'clothes', 'down',
                       'up', 'hair', 'hat', 'gender', 'image_index']
 
+        # actual number of atts with number of values representing the atts
         self.actual_atts = {'age': 1, 'backpack': 1, 'bag': 1, 'handbag': 1, 'down_color': 9, 'up_color': 8,
                             'clothes': 1, 'down': 1, 'up': 1, 'hair': 1, 'hat': 1, 'gender': 1}
+
+        # actual number of atts with number of required output neurons in the ne (important case: 'age')
+        self.atts_op_neurons = {'age': 4, 'backpack': 1, 'bag': 1, 'handbag': 1, 'down_color': 9, 'up_color': 8,
+                                'clothes': 1, 'down': 1, 'up': 1, 'hair': 1, 'hat': 1, 'gender': 1}
+        self.total_op_neurons = sum(list(self.atts_op_neurons.values()))
+
+        # attributes label type: 'i' = integer, 'b' = binary, 'o' = one_hot
+        self.atts_label_type = {'age': 'i', 'backpack': 'b', 'bag': 'b', 'handbag': 'b', 'down_color': 'o',
+                                'up_color': 'o', 'clothes': 'b', 'down': 'b', 'up': 'b', 'hair': 'b', 'hat': 'b',
+                                'gender': 'b'}
+
         self.no_train_ids = 750
         self.no_test_ids = 751
 
@@ -142,7 +173,6 @@ class MrktAttribute:
         if leave_index:
             ans = ans[:-1]
         return ans
-
 
     def get_atts_of(self, id):
         """
