@@ -71,7 +71,8 @@ class MainNet(torch.nn.Module):
         for k, v in att_class.actual_atts.items():
             op_neuron = att_class.atts_op_neurons[k]
             self.atts[k] = {'op_neur': op_neuron, 'label_idx': (idxs, idxs+v),
-                            'label_typ': att_class.atts_label_type[k], 'loss_weight': op_neuron/total_op_neurons}
+                            'label_typ': att_class.atts_label_type[k], 'loss_weight': op_neuron/total_op_neurons,
+                            'each_class_weight': att_class.atts_weights[k]}
             idxs = idxs + v
             self.atts[k]['model'] = SubNet(op_neurons=self.atts[k]['op_neur'], attr_name=k, **kwargs)
 
@@ -106,11 +107,12 @@ class MainNet(torch.nn.Module):
             model = self.atts[attr]['model']
             loss_weight = self.atts[attr]['loss_weight']
             strt_idx, end_idx = self.atts[attr]['label_idx']
+            each_class_weight = self.atts[attr]['each_class_weight']
             label = gt[:, strt_idx:end_idx].squeeze(1)
             if self.atts[attr]['label_typ'] == 'o':
                 # it is one hot convert it to integer
                 _, label = label.max(dim=1)
-            subnet_loss = model.loss(out_value, label)
+            subnet_loss = model.loss(out_value, label, weights=each_class_weight)
             loss_dict[attr] = (subnet_loss, loss_weight)
             loss = loss + (loss_weight * loss_weight)
         loss = torch.autograd.Variable(torch.from_numpy(np.array([loss])), requires_grad=True)

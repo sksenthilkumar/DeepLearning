@@ -133,6 +133,9 @@ class MrktAttribute:
         self.atts_label_type = {'age': 'i', 'backpack': 'b', 'bag': 'b', 'handbag': 'b', 'down_color': 'o',
                                 'up_color': 'o', 'clothes': 'b', 'down': 'b', 'up': 'b', 'hair': 'b', 'hat': 'b',
                                 'gender': 'b'}
+        self.atts_weights = {}
+        for k in self.actual_atts.keys():
+            self.atts_weights[k] = self.get_weights(k)
 
         self.no_train_ids = 750
         self.no_test_ids = 751
@@ -200,3 +203,12 @@ class MrktAttribute:
             return self.get_train_atts_of(_id)
         else:
             raise ValueError("Missing ID, the give id {} is not available".format(_id))
+
+    def get_weights(self, att):
+        # calculate the number of sample available for the given attribute
+        weights = {}
+        for cls in range(self.atts_op_neurons[att]):
+            # cls samples/ total samples
+            weights[cls] = 1
+
+        return weights
