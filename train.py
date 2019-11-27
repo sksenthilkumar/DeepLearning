@@ -31,16 +31,21 @@ class Train:
         self.learning_rate = self.train_params['lr']
         self.start_epoch = 0
 
+        self.__model__ = None
+        self.__optimizer__ = None
+
     def init_setup(self):
         # initiate setups
-        self.setup_model()
         self.setup_data()
-        self.setup_optimizer()
         self.setup_opfol()
         self.setup_logdf()
 
-    def setup_model(self):
-        self.model = ModelFactory(**self.model_params)
+    @property
+    def model(self):
+        if not self.__model__:
+            self.__model__ = ModelFactory(**self.model_params)
+
+        return self.__model__
 
     def setup_data(self):
         # setting up the data
@@ -49,17 +54,20 @@ class Train:
         self.test_data = torch.utils.data.DataLoader(Market1501(typ='test'), batch_size=self.batch_size,
                                                      drop_last=True)
 
-    def setup_optimizer(self):
+    @property
+    def optimizer(self):
         optimizer_name = self.train_params['optimizer']
-        self.optimizer = None
-        if optimizer_name == 'Adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        if not self.__optimizer__:
+            if optimizer_name == 'Adam':
+                self.__optimizer__ = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        elif optimizer_name == 'SGD':
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+            elif optimizer_name == 'SGD':
+                self.__optimizer__ = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
 
-        else:
-            raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
+            else:
+                raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
+
+        return self.__optimizer__
 
     def setup_metric(self):
         metric = self.train_params['metric']
