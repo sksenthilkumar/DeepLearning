@@ -37,22 +37,21 @@ class Market1501(torch.utils.data.Dataset):
         self.attributes = MrktAttribute(str(self.path.joinpath(attributes_fol_name)))
         self.get_atts_of = getattr(self.attributes, "get_{}_atts_of".format(typ))
 
-        self.__data_list__ = []
+        self.data_list = self.get_data_list()
 
-    @property
-    def data_list(self):
-        if not self.__data_list__:
-            fo = list(self.data_fol.glob("*.jpg"))
-            images_not_in_list = 0
-            for i in fo:
-                if i.stem.split('_')[0] != '-1':
-                    self.__data_list__.append(i)
-                else:
-                    images_not_in_list += 1
+    def get_data_list(self):
+        data_list = []
+        fo = list(self.data_fol.glob("*.jpg"))
+        images_not_in_list = 0
+        for i in fo:
+            if not int(i.stem.split('_')[0]) in [0, -1]:
+                data_list.append(i)
+            else:
+                images_not_in_list += 1
 
-            print("{} images with class -1 are not added to data list".format(images_not_in_list))
+        print("{} images with class -1/0 are not added to data list".format(images_not_in_list))
 
-        return self.__data_list__
+        return data_list
 
     def show_sample(self):
         idx = random.randint(0, self.__len__())
