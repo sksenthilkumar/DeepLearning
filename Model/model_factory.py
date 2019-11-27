@@ -10,5 +10,5 @@ def ModelFactory(**kwargs):
     if not hasattr(Model, model):
         raise ValueError("Please select a proper model. \n The selected model '{}' does not exists".format(model))
 
-    return getattr(Model, model)(kwargs)
+    return getattr(Model, model)(**kwargs)
 

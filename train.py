@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch.utils.data
 from torch.autograd import Variable
 
-from Data.data_loader import DataLoader
+from Data.data_loader import Market1501
 from utils import RunningAverage, top1_acc
 from Model.model_factory import ModelFactory
 
@@ -31,51 +31,56 @@ class Train:
         self.learning_rate = self.train_params['lr']
         self.start_epoch = 0
 
+        self.__model__ = None
+        self.__optimizer__ = None
+        self.__train_data__ = None
+        self.__test_data__ = None
+
     def init_setup(self):
         # initiate setups
-        self.setup_model()
-        self.setup_data()
-        self.setup_optimizer()
-        self.setup_loss()
-        self.setup_metric()
         self.setup_opfol()
         self.setup_logdf()
 
-    def setup_model(self):
-        self.model = ModelFactory(**self.model_params)
+    @property
+    def model(self):
+        if not self.__model__:
+            print("Loading model")
+            self.__model__ = ModelFactory(**self.model_params)
+            if self.train_params['use_gpu']:
+                self.__model__ = self.__model__.cuda(self.train_params['gpu_id'])
 
-    def setup_data(self):
+        return self.__model__
+
+    @property
+    def train_data(self):
         # setting up the data
-        self.train_data = torch.utils.data.DataLoader()
-        self.test_data = torch.utils.data.DataLoader()
+        if not self.__train_data__:
+            self.__train_data__ = torch.utils.data.DataLoader(Market1501(typ='train'), batch_size=self.batch_size,
+                                                              drop_last=True)
+        return self.__train_data__
 
-    def setup_optimizer(self):
-        optimizer_name = self.train_params['optimizer']
-        self.optimizer = None
-        if optimizer_name == 'Adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+    @property
+    def test_data(self):
+        if not self.__test_data__:
+            self.__test_data__ = torch.utils.data.DataLoader(Market1501(typ='test'), batch_size=self.batch_size,
+                                                             drop_last=True)
+        return self.__test_data__
 
-        elif optimizer_name == 'SGD':
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+    @property
+    def optimizer(self):
+        if not self.__optimizer__:
+            print("Loading optimizer")
+            optimizer_name = self.train_params['optimizer']
+            if optimizer_name == 'Adam':
+                self.__optimizer__ = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        else:
-            raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
+            elif optimizer_name == 'SGD':
+                self.__optimizer__ = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
 
-    def setup_loss(self):
-        loss_function = self.train_params['loss']
-        self.loss = None
-        if loss_function == 'CE':
-            self.loss = torch.nn.CrossEntropyLoss()
-        else:
-            raise ValueError("Unknown value {} for loss function".format(loss_function))
+            else:
+                raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
 
-    def setup_metric(self):
-        metric = self.train_params['metric']
-        self.metric = None
-        if metric == 'top1_acc':
-            self.metric = top1_acc
-        else:
-            raise ValueError("Unknown value {} for metric".format(metric))
+        return self.__optimizer__
 
     def setup_opfol(self):
         # setting up the output folder
@@ -91,10 +96,11 @@ class Train:
         # saving the training configuration file in the experiment folder
         save_config_path = self.op_path.joinpath("train_config.yaml")
         with open(str(save_config_path), 'w') as f:
+            self.train_config['id'] = self.exp_id
             yaml.dump(self.train_config, f)
 
     def setup_logdf(self):
-        self.logdf = pd.Dataframe(columns=['epoch', 'train_loss', 'test_loss', 'train_acc', 'test_acc'])
+        self.logdf = pd.DataFrame(columns=['epoch', 'train_loss', 'test_loss', 'train_acc', 'test_acc'])
         self.save_log_df()
 
     def save_log_df(self):
@@ -106,7 +112,7 @@ class Train:
             e_acc, e_loss = self.one_epoch(mode='test', epoch_num=i)
 
             self.logdf.append({'epoch': i, 'train_loss': loss(), 'test_loss': e_loss(),
-                               'train_acc': acc(), 'test_acc': e_acc()})
+                               'train_acc': acc(), 'test_acc': e_acc()}, ignore_index=True)
 
             self.save_log_df()
 
@@ -136,11 +142,14 @@ class Train:
         loss_avg = RunningAverage()
         with tqdm(total=len(dl)) as t:
             for n, (data, label) in enumerate(dl):
+                if self.train_params['use_gpu']:
+                    data, label = data.cuda(self.train_params['gpu_id']), label.cuda(self.train_params['gpu_id'])
                 data, label = Variable(data), Variable(label)
+                data = data.float()
                 loss, acc = one_iter_function(data, label)
                 loss_avg.update(loss)
                 acc_avg.update(acc)
-                t.set_postfix(run_param="Epoch{} Loss:{} Acc:{}".format(epoch_num, loss_avg(), acc_avg()))
+                t.set_postfix(run_param="Epoch{} Loss:{:.2f} Acc:{:.2f}".format(epoch_num, loss_avg(), acc_avg()))
                 t.update()
 
         return acc_avg, loss_avg
@@ -148,25 +157,25 @@ class Train:
     def one_train_iteration(self, data, label):
         self.optimizer.zero_grad()
         op = self.model(data)
-        loss = self.loss(op, label)
-        acc = self.metric(op, label)
+        loss, all_loss = self.model.loss(op, label)
+        all_acc = self.model.metric(op, label)
         loss.backward()
         self.optimizer.step()
 
-        return loss.data.item(), acc.item()
+        return loss.data.item(), all_acc['average'].item()
 
     def one_test_iteration(self, data, label):
 
         op = self.model(data)
-        loss = self.loss(op, label)
-        acc = self.metric(op, label)
+        loss, all_loss = self.model.loss(op, label)
+        all_acc = self.model.metric(op, label)
 
-        return loss.data.item(), acc.item()
+        return loss.data.item(), all_acc['average'].item()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-tc", required=True, help="training configuration file")
+    parser.add_argument("-tc", help="training configuration file", default="train_configs/train.yaml")
     args = parser.parse_args()
     a = Train(args.tc)
     a.init_setup()

@@ -1,14 +1,13 @@
 exp_name: Trial
-save_path:
+save_path: /home/senthil/results
 train_params:
   epochs: 100
   batch_size: 256
   lr: 0.001
   optimizer: Adam
-  loss: CE
-  metric: top1_acc
 
 model_params:
-  model_name: classifier
+  model_name: MainNet
+  extractor_op_features: 1000
   init: 0
-  output_class: 10
+
