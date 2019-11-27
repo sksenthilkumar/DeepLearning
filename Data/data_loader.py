@@ -6,6 +6,7 @@ from PIL import Image
 import scipy.io as scio
 import torch.utils.data
 import matplotlib.pyplot as plt
+import torchvision.transforms as transforms
 
 
 class Market1501(torch.utils.data.Dataset):
@@ -39,6 +40,21 @@ class Market1501(torch.utils.data.Dataset):
 
         self.data_list = self.get_data_list()
 
+        # transformation list
+        self.train_transformation = transforms.Compose([
+            transforms.RandomRotation(10),
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+            transforms.ToTensor(),
+        ])
+
+        self.test_transformation = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
+        self.transformation = getattr(self, '{}_transformation'.format(typ))
+
     def get_data_list(self):
         data_list = []
         fo = list(self.data_fol.glob("*.jpg"))
@@ -55,9 +71,9 @@ class Market1501(torch.utils.data.Dataset):
 
     def show_sample(self):
         idx = random.randint(0, self.__len__())
-        data, id = self.__getitem__(idx)
+        data, _id = self.__getitem__(idx)
         data.show()
-        atts = self.get_atts_of(id)
+        atts = self.get_atts_of(_id)
         for idx, val in enumerate(list(atts)):
             print("{:.^15}: {}".format(self.attributes.names[idx], val))
 
@@ -126,7 +142,7 @@ class MrktAttribute:
             self.path = path
             self.atts = scio.loadmat(str(self.path))['market_attribute'][0][0]
 
-            self.train_atts= self.__get_atts__(typ='train')
+            self.train_atts = self.__get_atts__(typ='train')
             self.test_atts = self.__get_atts__(typ='test')
 
             self.train_ids = self.__get_ids__(typ='train')
@@ -161,26 +177,26 @@ class MrktAttribute:
         atts[:-1, :] = temp
         return atts
 
-    def get_train_atts_of(self, id, leave_index=False):
-        ans = self.train_atts[:, self.train_ids.index(id)]
+    def get_train_atts_of(self, _id, leave_index=False):
+        ans = self.train_atts[:, self.train_ids.index(_id)]
         if leave_index:
             ans = ans[:-1]
         return ans
 
-    def get_test_atts_of(self, id, leave_index=False):
-        ans = self.test_atts[:, self.test_ids.index(id)]
+    def get_test_atts_of(self, _id, leave_index=False):
+        ans = self.test_atts[:, self.test_ids.index(_id)]
         if leave_index:
             ans = ans[:-1]
         return ans
 
-    def get_atts_of(self, id):
+    def get_atts_of(self, _id):
         """
-        :param id: eg: between '0000' '1500'
+        :param _id: eg: between '0000' '1500'
         :return: the 28 attributes of the given id
         """
-        if id in self.test_ids:
-            return self.get_test_atts_of(id)
-        elif id in self.train_ids:
-            return self.get_train_atts_of(id)
+        if _id in self.test_ids:
+            return self.get_test_atts_of(_id)
+        elif _id in self.train_ids:
+            return self.get_train_atts_of(_id)
         else:
-            raise ValueError("Missing ID, the give id {} is not available".format(id))
+            raise ValueError("Missing ID, the give id {} is not available".format(_id))
