@@ -31,43 +31,56 @@ class Train:
         self.learning_rate = self.train_params['lr']
         self.start_epoch = 0
 
+        self.__model__ = None
+        self.__optimizer__ = None
+        self.__train_data__ = None
+        self.__test_data__ = None
+
     def init_setup(self):
         # initiate setups
-        self.setup_model()
-        self.setup_data()
-        self.setup_optimizer()
         self.setup_opfol()
         self.setup_logdf()
 
-    def setup_model(self):
-        self.model = ModelFactory(**self.model_params)
+    @property
+    def model(self):
+        if not self.__model__:
+            print("Loading model")
+            self.__model__ = ModelFactory(**self.model_params)
+            if self.train_params['use_gpu']:
+                self.__model__ = self.__model__.cuda(self.train_params['gpu_id'])
 
-    def setup_data(self):
+        return self.__model__
+
+    @property
+    def train_data(self):
         # setting up the data
-        self.train_data = torch.utils.data.DataLoader(Market1501(typ='train'), batch_size=self.batch_size,
-                                                      drop_last=True)
-        self.test_data = torch.utils.data.DataLoader(Market1501(typ='test'), batch_size=self.batch_size,
-                                                     drop_last=True)
+        if not self.__train_data__:
+            self.__train_data__ = torch.utils.data.DataLoader(Market1501(typ='train'), batch_size=self.batch_size,
+                                                              drop_last=True)
+        return self.__train_data__
 
-    def setup_optimizer(self):
-        optimizer_name = self.train_params['optimizer']
-        self.optimizer = None
-        if optimizer_name == 'Adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+    @property
+    def test_data(self):
+        if not self.__test_data__:
+            self.__test_data__ = torch.utils.data.DataLoader(Market1501(typ='test'), batch_size=self.batch_size,
+                                                             drop_last=True)
+        return self.__test_data__
 
-        elif optimizer_name == 'SGD':
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+    @property
+    def optimizer(self):
+        if not self.__optimizer__:
+            print("Loading optimizer")
+            optimizer_name = self.train_params['optimizer']
+            if optimizer_name == 'Adam':
+                self.__optimizer__ = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        else:
-            raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
+            elif optimizer_name == 'SGD':
+                self.__optimizer__ = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
 
-    def setup_metric(self):
-        metric = self.train_params['metric']
-        self.metric = None
-        if metric == 'top1_acc':
-            self.metric = top1_acc
-        else:
-            raise ValueError("Unknown value {} for metric".format(metric))
+            else:
+                raise ValueError("Unknown value {} for optimizer name".format(optimizer_name))
+
+        return self.__optimizer__
 
     def setup_opfol(self):
         # setting up the output folder
@@ -99,7 +112,7 @@ class Train:
             e_acc, e_loss = self.one_epoch(mode='test', epoch_num=i)
 
             self.logdf.append({'epoch': i, 'train_loss': loss(), 'test_loss': e_loss(),
-                               'train_acc': acc(), 'test_acc': e_acc()})
+                               'train_acc': acc(), 'test_acc': e_acc()}, ignore_index=True)
 
             self.save_log_df()
 
@@ -129,7 +142,10 @@ class Train:
         loss_avg = RunningAverage()
         with tqdm(total=len(dl)) as t:
             for n, (data, label) in enumerate(dl):
+                if self.train_params['use_gpu']:
+                    data, label = data.cuda(self.train_params['gpu_id']), label.cuda(self.train_params['gpu_id'])
                 data, label = Variable(data), Variable(label)
+                data = data.float()
                 loss, acc = one_iter_function(data, label)
                 loss_avg.update(loss)
                 acc_avg.update(acc)
@@ -140,7 +156,6 @@ class Train:
 
     def one_train_iteration(self, data, label):
         self.optimizer.zero_grad()
-        data = data.float()
         op = self.model(data)
         loss, all_loss = self.model.loss(op, label)
         all_acc = self.model.metric(op, label)
@@ -152,10 +167,10 @@ class Train:
     def one_test_iteration(self, data, label):
 
         op = self.model(data)
-        loss = self.model.loss(op, label)
-        acc = self.metric(op, label)
+        loss, all_loss = self.model.loss(op, label)
+        all_acc = self.model.metric(op, label)
 
-        return loss.data.item(), acc.item()
+        return loss.data.item(), all_acc['average'].item()
 
 
 if __name__ == '__main__':
